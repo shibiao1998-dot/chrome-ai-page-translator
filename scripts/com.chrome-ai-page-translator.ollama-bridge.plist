@@ -3,12 +3,12 @@
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>com.billhuang.ollama-bridge</string>
+    <string>com.chrome-ai-page-translator.ollama-bridge</string>
 
     <key>ProgramArguments</key>
     <array>
       <string>/usr/local/bin/node</string>
-      <string>/Users/bill_huang/workspace/codex/chrome-ai-page-translator/scripts/ollama-bridge.mjs</string>
+      <string>__PROJECT_ROOT__/scripts/ollama-bridge.mjs</string>
     </array>
 
     <key>EnvironmentVariables</key>

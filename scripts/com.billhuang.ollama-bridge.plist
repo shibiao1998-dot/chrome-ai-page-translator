@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.billhuang.ollama-bridge</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/local/bin/node</string>
+      <string>/Users/bill_huang/workspace/codex/chrome-ai-page-translator/scripts/ollama-bridge.mjs</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>OLLAMA_HOST</key>
+      <string>http://127.0.0.1:11434</string>
+      <key>OLLAMA_BRIDGE_PORT</key>
+      <string>11435</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ollama-bridge.stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ollama-bridge.stderr.log</string>
+  </dict>
+</plist>

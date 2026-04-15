@@ -1,0 +1,19 @@
+{
+  "name": "chrome-ai-page-translator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node scripts/build-content.js",
+    "build": "tsc --noEmit && vite build",
+    "bridge": "node scripts/ollama-bridge.mjs",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.307",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

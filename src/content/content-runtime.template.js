@@ -34,6 +34,8 @@
     lastErrorMessage: undefined
   };
 
+  const SESSION_STORAGE_KEY = 'ai-page-translator-session';
+
   window.__AI_TRANSLATOR_READY__ = false;
   window.__AI_TRANSLATOR_INIT_ERROR__ = undefined;
 
@@ -47,6 +49,31 @@
 
   function createSessionId() {
     return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function loadPersistedSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function savePersistedSession(session) {
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  function clearPersistedSession() {
+    try {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch {
+      // ignore storage failures
+    }
   }
 
   function normalizeText(input) {
@@ -515,10 +542,16 @@
       this.observer = null;
       this.settings = null;
       this.adapter = null;
+      this.recovering = false;
       this.routeWatcher.start();
     }
 
     async autoStart() {
+      const persisted = loadPersistedSession();
+      if (persisted && persisted.url === window.location.href && persisted.shouldResume === true) {
+        this.recovering = true;
+      }
+
       const bootstrap = await getBootstrapData();
       this.settings = bootstrap.settings;
 
@@ -527,10 +560,10 @@
       }
 
       await delay(AUTO_START_DELAY_MS);
-      return this.startNewSession();
+      return this.startNewSession(this.recovering ? 'recover' : 'auto');
     }
 
-    async startNewSession() {
+    async startNewSession(reason) {
       const bootstrap = await getBootstrapData();
       this.settings = bootstrap.settings;
       this.adapter = this.registry.resolve();
@@ -541,6 +574,13 @@
       this.state.adapterName = this.adapter.name;
       this.state.activeProviderId = await resolveActiveProviderId(this.settings);
       this.state.status = 'running';
+      this.recovering = false;
+      savePersistedSession({
+        url: window.location.href,
+        shouldResume: true,
+        reason: reason || 'manual',
+        startedAt: Date.now()
+      });
 
       if (!this.state.activeProviderId) {
         this.state.status = 'error';
@@ -567,17 +607,29 @@
         this.state.status = 'error';
         this.state.lastErrorCode = 'NO_SEGMENTS_FOUND';
         this.state.lastErrorMessage = 'No translatable content found on this page';
+        savePersistedSession({
+          url: window.location.href,
+          shouldResume: false,
+          reason: 'no_segments',
+          startedAt: Date.now()
+        });
         return this.getState();
       }
 
       this.enableObserverIfNeeded();
       this.state.status = this.state.observing ? 'observing' : this.state.failed > 0 ? 'error' : 'completed';
+      savePersistedSession({
+        url: window.location.href,
+        shouldResume: this.state.observing,
+        reason: this.state.status,
+        startedAt: Date.now()
+      });
       return this.getState();
     }
 
     async rescan() {
       if (!this.running || !this.adapter || !this.settings) {
-        return this.startNewSession();
+        return this.startNewSession('rescan-restart');
       }
 
       await this.collectAndFlush();
@@ -592,6 +644,12 @@
       this.disconnectObserver();
       this.state.observing = false;
       this.state.status = 'stopped';
+      savePersistedSession({
+        url: window.location.href,
+        shouldResume: false,
+        reason: 'stopped',
+        startedAt: Date.now()
+      });
       return this.getState();
     }
 
@@ -599,6 +657,7 @@
       this.running = false;
       this.resetSessionState(true);
       this.state.status = 'idle';
+      clearPersistedSession();
       return this.getState();
     }
 
@@ -625,7 +684,7 @@
 
       if (this.settings && this.settings.autoTranslateEnabled) {
         await delay(AUTO_START_DELAY_MS);
-        await this.startNewSession();
+        await this.startNewSession('route-change');
       }
     }
 
@@ -799,7 +858,7 @@
 
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if (message && message.type === CONTENT_MESSAGE_ACTIONS.startTranslation) {
-        void manager.startNewSession()
+        void manager.startNewSession('popup-resume')
           .then((state) => sendResponse({ ok: true, state }))
           .catch((error) => sendResponse(createErrorResponse(error, manager.getState())));
         return true;
@@ -813,7 +872,7 @@
       }
 
       if (message && message.type === CONTENT_MESSAGE_ACTIONS.restartTranslation) {
-        void manager.startNewSession()
+        void manager.startNewSession('popup-restart')
           .then((state) => sendResponse({ ok: true, state }))
           .catch((error) => sendResponse(createErrorResponse(error, manager.getState())));
         return true;

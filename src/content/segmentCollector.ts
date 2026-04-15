@@ -107,6 +107,16 @@ function splitLongText(text: string, maxSegmentLength: number): string[] {
       continue;
     }
 
+    if (part.length > maxSegmentLength) {
+      if (current) {
+        chunks.push(current);
+        current = '';
+      }
+
+      chunks.push(...splitOversizedPart(part, maxSegmentLength));
+      continue;
+    }
+
     if (!current) {
       current = part;
       continue;
@@ -123,6 +133,27 @@ function splitLongText(text: string, maxSegmentLength: number): string[] {
 
   if (current) {
     chunks.push(current);
+  }
+
+  return chunks;
+}
+
+function splitOversizedPart(text: string, maxSegmentLength: number): string[] {
+  const chunks: string[] = [];
+  let remaining = text.trim();
+
+  while (remaining.length > maxSegmentLength) {
+    let splitAt = remaining.lastIndexOf(' ', maxSegmentLength);
+    if (splitAt <= 0 || splitAt < Math.floor(maxSegmentLength * 0.6)) {
+      splitAt = maxSegmentLength;
+    }
+
+    chunks.push(remaining.slice(0, splitAt).trim());
+    remaining = remaining.slice(splitAt).trim();
+  }
+
+  if (remaining) {
+    chunks.push(remaining);
   }
 
   return chunks;

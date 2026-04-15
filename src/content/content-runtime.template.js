@@ -287,6 +287,14 @@
       if (!part) {
         continue;
       }
+      if (part.length > maxSegmentLength) {
+        if (current) {
+          chunks.push(current);
+          current = '';
+        }
+        chunks.push(...splitOversizedPart(part, maxSegmentLength));
+        continue;
+      }
       if (!current) {
         current = part;
         continue;
@@ -301,6 +309,27 @@
     if (current) {
       chunks.push(current);
     }
+    return chunks;
+  }
+
+  function splitOversizedPart(text, maxSegmentLength) {
+    const chunks = [];
+    let remaining = text.trim();
+
+    while (remaining.length > maxSegmentLength) {
+      let splitAt = remaining.lastIndexOf(' ', maxSegmentLength);
+      if (splitAt <= 0 || splitAt < Math.floor(maxSegmentLength * 0.6)) {
+        splitAt = maxSegmentLength;
+      }
+
+      chunks.push(remaining.slice(0, splitAt).trim());
+      remaining = remaining.slice(splitAt).trim();
+    }
+
+    if (remaining) {
+      chunks.push(remaining);
+    }
+
     return chunks;
   }
 
@@ -464,11 +493,16 @@
     }
 
     async waitForReady() {
-      return waitForSelector(['.markdown-body', '.comment-body', '.js-comment-body'], 5000);
+      return waitForSelector(['#readme', '.markdown-body', '.comment-body', '.js-comment-body', '[data-testid="readme"]'], 5000);
     }
 
     collectSegments(settings) {
-      const blocks = Array.from(document.querySelectorAll('.markdown-body p, .markdown-body li, .js-comment-body p, .js-comment-body li, .comment-body p, .comment-body li')).slice(0, 20);
+      const blocks = Array.from(document.querySelectorAll(
+        '#readme .markdown-body p, #readme .markdown-body li, #readme .markdown-body h1, #readme .markdown-body h2, #readme .markdown-body h3, '
+        + '[data-testid="readme"] .markdown-body p, [data-testid="readme"] .markdown-body li, '
+        + '.markdown-body p, .markdown-body li, .markdown-body h1, .markdown-body h2, .markdown-body h3, '
+        + '.js-comment-body p, .js-comment-body li, .comment-body p, .comment-body li'
+      ));
       return buildSegmentsFromBlocks(blocks, settings, this.siteKind, 'comment_body', 'afterend');
     }
 
